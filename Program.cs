@@ -13,7 +13,7 @@ internal static class Program
         var opts = new JsonSerializerOptions
         {
             WriteIndented = true,
-            ReadCommentHandling = JsonCommentHandling.Allow,
+            ReadCommentHandling = JsonCommentHandling.Skip,
             AllowTrailingCommas = true
         };
         Console.WriteLine(doc.ToJsonString(opts));
