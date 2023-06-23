@@ -1,21 +1,33 @@
-﻿using System.Text.Json.Nodes;
 using System.Text.Json;
-using System.IO;
+using System.Text.Unicode;
 
 internal static class Program
 {
     static void Main(string[] args)
     {
-        StreamReader file = File.OpenText(args[0]);
-        string jsonString = (file.ReadToEnd());
-        // var nodeOpts = new JsonNodeOptions {PropertyNameCaseInsensitive }
-        JsonNode doc = JsonNode.Parse(jsonString);
-        var opts = new JsonSerializerOptions
-        {
-            WriteIndented = true,
-            ReadCommentHandling = JsonCommentHandling.Skip,
-            AllowTrailingCommas = true
-        };
-        Console.WriteLine(doc.ToJsonString(opts));
+        Stream file = File.OpenRead(args[0]);
+        Stream stdout = Console.OpenStandardOutput();
+        Utf8JsonWriter writer =
+            new(
+                stdout,
+                new JsonWriterOptions
+                {
+                    Indented = true,
+                    Encoder = System.Text.Encodings.Web.JavaScriptEncoder.Create(UnicodeRanges.All)
+                }
+            );
+        JsonDocument
+            .Parse(
+                file,
+                new JsonDocumentOptions
+                {
+                    CommentHandling = JsonCommentHandling.Skip,
+                    AllowTrailingCommas = true,
+                }
+            )
+            .WriteTo(writer);
+        writer.Flush();
+        // JsonNode doc = JsonNode.Parse(jsonString);
+        // Console.WriteLine(doc.ToJsonString(opts));
     }
 }
