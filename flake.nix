@@ -1,46 +1,36 @@
 {
   description = "A very basic .NET flake";
-
   inputs = { nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable"; };
   outputs = { self, nixpkgs }:
     let
       system = "x86_64-linux";
       pkgs = nixpkgs.legacyPackages.${system};
       dotnetPkgs = with pkgs;
-        (with dotnetCorePackages; combinePackages [ sdk_7_0 sdk_6_0 ]);
+        (with dotnetCorePackages; combinePackages [ sdk_7_0 ]);
+      deps = with pkgs; [ clang zlib zlib.dev icu pkg-config ];
     in {
-      devShells.x86_64-linux.default = pkgs.mkShell {
-        name = "jsonfmt";
-        buildInputs = with pkgs; [ dotnetPkgs clang zlib omnisharp-roslyn ];
-        shellHook = ''
-          export DOTNET_ROOT=${dotnetPkgs}
-        '';
+      apps.${system}.fetch-deps = {
+        type = "app";
+        program = "${self.packages.${system}.default.passthru.fetch-deps}";
       };
-      packages.${system}.default = pkgs.stdenv.mkDerivation {
-        pname = "jsonfmt";
-        version = "0.0.1";
-        # unpackPhase = ":";
-        src = pkgs.fetchFromGitHub {
-          owner = "ShinyZero0";
-          repo = "jsonfmt";
-          rev = "0.0.1";
-          sha256 = "sha256-AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+
+      packages.${system}.default = with pkgs;
+        buildDotnetModule {
+
+          pname = "jsonfmt";
+          version = "0.0.1";
+          src = ./.;
+          nugetDeps = ./deps.nix;
+          dotnet-sdk = dotnetCorePackages.sdk_7_0;
+          dotnet-runtime = dotnetCorePackages.runtime_7_0;
+          buildInputs = deps;
+          nativeBuildInputs = [ ] ++ deps;
+          selfContainedBuild = true;
+
+          DOTNET_ROOT = "${dotnetPkgs}";
+          LOCALE_ARCHIVE = "${glibcLocales}/lib/locale/locale-archive";
+          NIX_LD_LIBRARY_PATH = lib.makeLibraryPath ([ stdenv.cc.cc ] ++ deps);
+          NIX_LD = "${stdenv.cc.libc_bin}/bin/ld.so";
         };
-        nativeBuildInputs = with pkgs; [ zlib ];
-        buildInputs = with pkgs; [ icu ];
-        buildPhase = ''
-          					HOME=$PWD/home
-          					PATH=${pkgs.dotnet-sdk_7}/bin:$PATH
-          					DOTNET_ROOT=${pkgs.dotnet-sdk_7}
-
-          					mkdir -p $HOME
-                    dotnet publish -o ./out/
-        '';
-
-        installPhase = ''
-          mkdir -p $out/bin
-          cp ./out/jsonfmt $out/bin/
-        '';
-      };
     };
 }
